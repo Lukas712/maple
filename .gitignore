@@ -1,0 +1,13 @@
+# Diretório de build do Rust (gerenciado pelo Cargo)
+/target/
+
+# Imagens de disco e pastas temporárias de build
+*.iso
+*.hdd
+iso_root/
+
+# Ferramentas e dependências baixadas automaticamente pelo Makefile
+limine-binary/
+limine-binary.tar.gz
+edk2-ovmf-bins/
+edk2-ovmf-bins.tar.gz
