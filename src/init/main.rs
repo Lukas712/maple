@@ -1,58 +1,42 @@
+//! Ponto de entrada do kernel Maple.
+//!
+//! - `#![no_std]`  Remove a biblioteca padrão "std" (que assume um SO por
+//!   trás: heap, threads, arquivos, etc.). Equivale a compilar C com
+//!   `-ffreestanding -nostdlib`.
+//! - `#![no_main]` desliga o `main()` padrão do Rust (que espera um
+//!   runtime rodando coisas antes dele). Definimos nosso próprio ponto de
+//!   entrada manualmente (`kmain`), do mesmo jeito que o oak usa
+//!   `ENTRY(kmain)` no `linker.ld`.
 #![no_std]
 #![no_main]
 
 use core::panic::PanicInfo;
-use limine::BaseRevision;
+#[path = "../boot/mod.rs"]
+mod boot;
 
-// Define a revisão base utilizando BaseRevision::new() sem argumentos
-#[used]
-#[link_section = ".limine_requests"]
-static BASE_REVISION: BaseRevision = BaseRevision::new();
+#[path = "../kernel/mod.rs"]
+mod kernel;
 
-// Função para escrever na porta serial COM1
-unsafe fn outb(port: u16, val: u8) {
-    core::arch::asm!(
-        "out dx, al",
-        in("dx") port,
-        in("al") val,
-        options(nostack, preserves_flags)
-    );
-}
-
-fn imprimir_serial(texto: &str) {
-    for byte in texto.bytes() {
-        unsafe {
-            outb(0x3F8, byte);
-        }
-    }
-}
-
-// O ponto de entrada do kernel em Rust (chamado pelo Limine)
+/// Ponto de entrada do kernel, chamado diretamente pelo Limine após o
+/// boot.
+///
+/// - `#[no_mangle]` impede o Rust de renomear internamente o nome da
+///   função (name mangling). Sem isso, o símbolo exportado no binário
+///   teria um nome "decorado" e o `linker.ld` não encontraria `kmain`.
+/// 
+/// - `extern "C"` faz esta função usar a convenção de chamada do C,
+///   necessária para que código externo (o bootloader, escrito em C)
+///   consiga chamá-la corretamente.
 #[no_mangle]
 extern "C" fn kmain() -> ! {
-    // Verifica se a revisão base é suportada pelo bootloader
-    if !BASE_REVISION.is_supported() {
-        hcf();
+    if !boot::is_supported() {
+        kernel::hcf();
     }
 
-    imprimir_serial("\n========================================\n");
-    imprimir_serial("[MAPLE KERNEL] Inicializado com sucesso em Rust!\n");
-    imprimir_serial("========================================\n\n");
-
-    hcf();
+    kernel::kernel_main();
 }
 
-// Trava a CPU em caso de erro fatal (Halt and Catch Fire)
-fn hcf() -> ! {
-    loop {
-        unsafe {
-            core::arch::asm!("hlt");
-        }
-    }
-}
-
-// Obrigatório em ambientes no_std para tratar falhas de pânico
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    hcf();
+    kernel::hcf();
 }
