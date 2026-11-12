@@ -7,7 +7,7 @@ KERNEL_BIN := target/$(TARGET)/release/maple
 all: $(IMAGE_NAME).iso
 
 # 1. Compila o Kernel Rust usando Cargo (com alvo bare-metal)
-$(KERNEL_BIN): src/init/main.rs Cargo.toml linker.ld
+$(KERNEL_BIN): $(wildcard src/*/*.rs) Cargo.toml linker.ld
 	cargo build --target $(TARGET) --release
 
 # 2. Baixa e compila o utilitário binário do Limine para criar a ISO
